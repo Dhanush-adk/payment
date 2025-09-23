@@ -1,0 +1,464 @@
+{
+  "info": {
+    "name": "Indian Payment API",
+    "description": "Complete collection for testing Indian Payment API with all payment methods",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Compliance Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/compliance",
+              "host": ["{{base_url}}"],
+              "path": ["compliance"]
+            }
+          }
+        },
+        {
+          "name": "Payment Methods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/payments/methods",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "methods"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Card Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"card\",\n  \"orderId\": \"CARD_TEST_{{$timestamp}}\",\n  \"userId\": \"user_001\",\n  \"customerPhone\": \"+919876543210\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerName\": \"John Doe\",\n  \"billingAddress\": {\n    \"name\": \"John Doe\",\n    \"street\": \"123 Main Street\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\",\n    \"country\": \"India\"\n  },\n  \"shippingAddress\": {\n    \"name\": \"John Doe\",\n    \"street\": \"123 Main Street\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "create"]
+            }
+          }
+        },
+        {
+          "name": "Create UPI Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"upi\",\n  \"orderId\": \"UPI_TEST_{{$timestamp}}\",\n  \"userId\": \"user_002\",\n  \"customerPhone\": \"+919876543210\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerName\": \"Jane Smith\",\n  \"billingAddress\": {\n    \"name\": \"Jane Smith\",\n    \"street\": \"456 Park Avenue\",\n    \"city\": \"Delhi\",\n    \"state\": \"Delhi\",\n    \"pincode\": \"110001\",\n    \"country\": \"India\"\n  },\n  \"shippingAddress\": {\n    \"name\": \"Jane Smith\",\n    \"street\": \"456 Park Avenue\",\n    \"city\": \"Delhi\",\n    \"state\": \"Delhi\",\n    \"pincode\": \"110001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "create"]
+            }
+          }
+        },
+        {
+          "name": "Create Net Banking Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"netbanking\",\n  \"orderId\": \"NETBANK_TEST_{{$timestamp}}\",\n  \"userId\": \"user_003\",\n  \"customerPhone\": \"+919876543210\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerName\": \"Raj Kumar\",\n  \"billingAddress\": {\n    \"name\": \"Raj Kumar\",\n    \"street\": \"789 Business District\",\n    \"city\": \"Bangalore\",\n    \"state\": \"Karnataka\",\n    \"pincode\": \"560001\",\n    \"country\": \"India\"\n  },\n  \"shippingAddress\": {\n    \"name\": \"Raj Kumar\",\n    \"street\": \"789 Business District\",\n    \"city\": \"Bangalore\",\n    \"state\": \"Karnataka\",\n    \"pincode\": \"560001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "create"]
+            }
+          }
+        },
+        {
+          "name": "Create Wallet Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 750,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"wallet\",\n  \"orderId\": \"WALLET_TEST_{{$timestamp}}\",\n  \"userId\": \"user_004\",\n  \"customerPhone\": \"+919876543210\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerName\": \"Priya Sharma\",\n  \"billingAddress\": {\n    \"name\": \"Priya Sharma\",\n    \"street\": \"321 Tech Park\",\n    \"city\": \"Pune\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"411001\",\n    \"country\": \"India\"\n  },\n  \"shippingAddress\": {\n    \"name\": \"Priya Sharma\",\n    \"street\": \"321 Tech Park\",\n    \"city\": \"Pune\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"411001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "create"]
+            }
+          }
+        },
+        {
+          "name": "Create Cash on Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1500,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"cash_on_delivery\",\n  \"orderId\": \"COD_TEST_{{$timestamp}}\",\n  \"userId\": \"user_005\",\n  \"customerPhone\": \"+919876543210\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerName\": \"Amit Patel\",\n  \"billingAddress\": {\n    \"name\": \"Amit Patel\",\n    \"street\": \"654 Residential Area\",\n    \"city\": \"Ahmedabad\",\n    \"state\": \"Gujarat\",\n    \"pincode\": \"380001\",\n    \"country\": \"India\"\n  },\n  \"shippingAddress\": {\n    \"name\": \"Amit Patel\",\n    \"street\": \"654 Residential Area\",\n    \"city\": \"Ahmedabad\",\n    \"state\": \"Gujarat\",\n    \"pincode\": \"380001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "create"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/payments/status/{{payment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "status", "{{payment_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Confirm Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"paymentMethod\": \"card\",\n  \"paymentData\": {\n    \"razorpayOrderId\": \"{{razorpay_order_id}}\",\n    \"razorpayPaymentId\": \"{{razorpay_payment_id}}\",\n    \"razorpaySignature\": \"{{razorpay_signature}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/confirm",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "confirm"]
+            }
+          }
+        },
+        {
+          "name": "Refund Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"amount\": 100,\n  \"reason\": \"Customer requested refund\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GST",
+      "item": [
+        {
+          "name": "Calculate GST (Intra-state)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"gstRate\": 18,\n  \"isInterState\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gst/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gst", "calculate"]
+            }
+          }
+        },
+        {
+          "name": "Calculate GST (Inter-state)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"gstRate\": 18,\n  \"isInterState\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gst/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gst", "calculate"]
+            }
+          }
+        },
+        {
+          "name": "Get GST Rates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/gst/rates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gst", "rates"]
+            }
+          }
+        },
+        {
+          "name": "Validate GST Number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gstNumber\": \"27AAPFU0939F1ZV\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/gst/validate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "gst", "validate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"user_006\",\n  \"items\": [\n    {\n      \"productId\": \"PROD_001\",\n      \"name\": \"Laptop\",\n      \"quantity\": 1,\n      \"price\": 50000,\n      \"hsnCode\": \"8471\",\n      \"gstRate\": 18\n    },\n    {\n      \"productId\": \"PROD_002\",\n      \"name\": \"Mouse\",\n      \"quantity\": 2,\n      \"price\": 500,\n      \"hsnCode\": \"8471\",\n      \"gstRate\": 18\n    }\n  ],\n  \"totalAmount\": 51000,\n  \"shippingAddress\": {\n    \"name\": \"Test User\",\n    \"street\": \"123 Test Street\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  },\n  \"billingAddress\": {\n    \"name\": \"Test User\",\n    \"street\": \"123 Test Street\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\",\n    \"country\": \"India\",\n    \"phone\": \"+919876543210\"\n  },\n  \"paymentMethod\": \"card\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "create"]
+            }
+          }
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Get User Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/user/{{user_id}}?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "user", "{{user_id}}"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Verify Webhook Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Test Razorpay Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.captured\",\n  \"payload\": {\n    \"payment\": {\n      \"entity\": {\n        \"id\": \"pay_RL68PIo9jCXCnC\",\n        \"order_id\": \"order_RL68PIo9jCXCnC\",\n        \"method\": \"card\",\n        \"status\": \"captured\",\n        \"amount\": 100000\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/razorpay",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "razorpay"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "payment_id",
+      "value": "68d2c136e01d30158e67e9d9"
+    },
+    {
+      "key": "order_id",
+      "value": "ORD_1234567890_abc123def"
+    },
+    {
+      "key": "user_id",
+      "value": "user_001"
+    },
+    {
+      "key": "razorpay_order_id",
+      "value": "order_RL68PIo9jCXCnC"
+    },
+    {
+      "key": "razorpay_payment_id",
+      "value": "pay_RL68PIo9jCXCnC"
+    },
+    {
+      "key": "razorpay_signature",
+      "value": "signature_here"
+    }
+  ]
+}
