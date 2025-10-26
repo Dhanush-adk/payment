@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Order = require('../models/Order');
-const Payment = require('../models/Payment');
+const Order = require('../models/OrderMySQL');
+const Payment = require('../models/PaymentMySQL');
 const gstService = require('../services/gstService');
 
 const router = express.Router();
@@ -41,36 +41,55 @@ router.post('/create', [
     const isInterState = billingAddress.state !== shippingAddress.state;
     const gstDetails = gstService.calculateGST(totalAmount, 18, isInterState);
 
-    const order = new Order({
+    const orderData = {
       orderId,
       userId,
       items,
-      pricing: {
-        subtotal: totalAmount / 1.18, // Remove GST to get subtotal
-        gstAmount: gstDetails.gstAmount,
-        totalAmount: totalAmount,
-        currency: 'INR'
-      },
-      shippingAddress,
-      billingAddress,
+      subtotal: totalAmount / 1.18, // Remove GST to get subtotal
+      gstAmount: gstDetails.gstAmount,
+      totalAmount: totalAmount,
+      currency: 'INR',
+      shippingName: shippingAddress.name,
+      shippingStreet: shippingAddress.street,
+      shippingCity: shippingAddress.city,
+      shippingState: shippingAddress.state,
+      shippingPincode: shippingAddress.pincode,
+      shippingCountry: shippingAddress.country || 'India',
+      shippingPhone: shippingAddress.phone,
+      shippingLandmark: shippingAddress.landmark,
+      billingName: billingAddress.name,
+      billingStreet: billingAddress.street,
+      billingCity: billingAddress.city,
+      billingState: billingAddress.state,
+      billingPincode: billingAddress.pincode,
+      billingCountry: billingAddress.country || 'India',
+      billingPhone: billingAddress.phone,
       paymentMethod,
-      gstDetails: {
-        gstNumber: gstNumber || null,
-        isGstRegistered: !!gstNumber,
-        gstRate: 18,
-        ...gstDetails
-      }
-    });
+      gstNumber: gstNumber || null,
+      isGstRegistered: !!gstNumber,
+      gstRate: 18,
+      cgst: gstDetails.cgst,
+      sgst: gstDetails.sgst,
+      igst: gstDetails.igst,
+      totalGst: gstDetails.totalGst
+    };
 
-    await order.save();
+    const order = await Order.create(orderData);
 
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
       data: {
         orderId: order.orderId,
-        totalAmount: order.pricing.totalAmount,
-        gstDetails: order.gstDetails,
+        totalAmount: order.totalAmount,
+        gstDetails: {
+          gstNumber: order.gstNumber,
+          gstRate: order.gstRate,
+          cgst: order.cgst,
+          sgst: order.sgst,
+          igst: order.igst,
+          totalGst: order.totalGst
+        },
         status: order.status,
         paymentMethod: order.paymentMethod
       }
@@ -89,7 +108,7 @@ router.post('/create', [
 // Get order details
 router.get('/:orderId', async (req, res) => {
   try {
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    const order = await Order.findOne({ where: { orderId: req.params.orderId } });
     
     if (!order) {
       return res.status(404).json({
@@ -225,7 +244,7 @@ router.patch('/:orderId/cancel', async (req, res) => {
   try {
     const { reason } = req.body;
 
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    const order = await Order.findOne({ where: { orderId: req.params.orderId } });
     if (!order) {
       return res.status(404).json({
         success: false,

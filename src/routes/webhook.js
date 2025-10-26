@@ -1,6 +1,6 @@
 const express = require('express');
-const Payment = require('../models/Payment');
-const Order = require('../models/Order');
+const Payment = require('../models/PaymentMySQL');
+const Order = require('../models/OrderMySQL');
 
 const router = express.Router();
 
@@ -33,36 +33,32 @@ router.post('/razorpay', express.json(), async (req, res) => {
 async function handleRazorpayPaymentSuccess(payment) {
   try {
     const paymentRecord = await Payment.findOne({
-      'paymentDetails.razorpayOrderId': payment.order_id
+      where: { razorpayOrderId: payment.order_id }
     });
 
     if (paymentRecord) {
-      paymentRecord.status = 'completed';
-      paymentRecord.paymentDetails.razorpayPaymentId = payment.id;
-      paymentRecord.paymentDetails.upiTransactionId = payment.id;
-      
-      // Add card details if available
-      if (payment.method === 'card') {
-        paymentRecord.paymentDetails.cardLast4 = payment.card?.last4;
-        paymentRecord.paymentDetails.cardBrand = payment.card?.network;
-        paymentRecord.paymentDetails.cardType = payment.card?.type;
-      }
-      
-      // Add UPI details if available
-      if (payment.method === 'upi') {
-        paymentRecord.paymentDetails.upiId = payment.vpa;
-        paymentRecord.paymentDetails.upiApp = payment.wallet;
-      }
-
-      await paymentRecord.save();
+      await paymentRecord.update({
+        status: 'completed',
+        razorpayPaymentId: payment.id,
+        upiTransactionId: payment.id,
+        ...(payment.method === 'card' && {
+          cardLast4: payment.card?.last4,
+          cardBrand: payment.card?.network,
+          cardType: payment.card?.type
+        }),
+        ...(payment.method === 'upi' && {
+          upiId: payment.vpa,
+          upiApp: payment.wallet
+        })
+      });
 
       // Update order status
-      await Order.findOneAndUpdate(
-        { orderId: paymentRecord.orderId },
+      await Order.update(
         { 
           paymentStatus: 'paid',
           status: 'confirmed'
-        }
+        },
+        { where: { orderId: paymentRecord.orderId } }
       );
 
       console.log(`Razorpay payment ${paymentRecord._id} completed successfully`);
@@ -75,14 +71,13 @@ async function handleRazorpayPaymentSuccess(payment) {
 async function handleRazorpayPaymentFailure(payment) {
   try {
     const paymentRecord = await Payment.findOne({
-      'paymentDetails.razorpayOrderId': payment.order_id
+      where: { razorpayOrderId: payment.order_id }
     });
 
     if (paymentRecord) {
-      paymentRecord.status = 'failed';
-      await paymentRecord.save();
+      await paymentRecord.update({ status: 'failed' });
 
-      console.log(`Razorpay payment ${paymentRecord._id} failed`);
+      console.log(`Razorpay payment ${paymentRecord.id} failed`);
     }
   } catch (error) {
     console.error('Error handling Razorpay payment failure:', error);
@@ -100,12 +95,12 @@ async function handleRazorpayOrderPaid(order) {
       await paymentRecord.save();
 
       // Update order status
-      await Order.findOneAndUpdate(
-        { orderId: paymentRecord.orderId },
+      await Order.update(
         { 
           paymentStatus: 'paid',
           status: 'confirmed'
-        }
+        },
+        { where: { orderId: paymentRecord.orderId } }
       );
 
       console.log(`Razorpay order ${order.id} paid successfully`);

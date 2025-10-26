@@ -180,37 +180,52 @@
                 const paymentData = await response.json();
                 
                 if (paymentData.success) {
-                    showStatus('cardStatus', 'Payment created! Opening Razorpay checkout...', 'success');
-                    
-                    // Step 2: Open Razorpay checkout
-                    const options = {
-                        key: paymentData.data.key,
-                        amount: paymentData.data.amount * 100, // Convert to paise
-                        currency: paymentData.data.currency,
-                        name: 'Indian Payment API Test',
-                        description: 'Test Card Payment',
-                        order_id: paymentData.data.razorpayOrderId,
-                        handler: function (response) {
-                            // Step 3: Payment successful - confirm with backend
-                            confirmPayment(paymentData.data.paymentId, response, 'cardStatus');
-                        },
-                        prefill: {
-                            name: 'Test User',
-                            email: 'test@example.com',
-                            contact: '+919876543210'
-                        },
-                        theme: {
-                            color: '#3399cc'
-                        },
-                        modal: {
-                            ondismiss: function() {
-                                showStatus('cardStatus', 'Payment cancelled by user', 'error');
+                    // Check if this is test mode
+                    if (paymentData.data.testMode) {
+                        showStatus('cardStatus', '🧪 Test Mode: Payment created successfully! Simulating payment confirmation...', 'success');
+                        
+                        // Simulate payment confirmation after 2 seconds
+                        setTimeout(() => {
+                            const mockResponse = {
+                                razorpay_order_id: paymentData.data.razorpayOrderId,
+                                razorpay_payment_id: 'test_payment_' + Date.now(),
+                                razorpay_signature: 'test_signature_' + Date.now()
+                            };
+                            confirmPayment(paymentData.data.paymentId, mockResponse, 'cardStatus');
+                        }, 2000);
+                    } else {
+                        showStatus('cardStatus', 'Payment created! Opening Razorpay checkout...', 'success');
+                        
+                        // Step 2: Open Razorpay checkout
+                        const options = {
+                            key: paymentData.data.key,
+                            amount: paymentData.data.amount * 100, // Convert to paise
+                            currency: paymentData.data.currency,
+                            name: 'Indian Payment API Test',
+                            description: 'Test Card Payment',
+                            order_id: paymentData.data.razorpayOrderId,
+                            handler: function (response) {
+                                // Step 3: Payment successful - confirm with backend
+                                confirmPayment(paymentData.data.paymentId, response, 'cardStatus');
+                            },
+                            prefill: {
+                                name: 'Test User',
+                                email: 'test@example.com',
+                                contact: '+919876543210'
+                            },
+                            theme: {
+                                color: '#3399cc'
+                            },
+                            modal: {
+                                ondismiss: function() {
+                                    showStatus('cardStatus', 'Payment cancelled by user', 'error');
+                                }
                             }
-                        }
-                    };
-                    
-                    const rzp = new Razorpay(options);
-                    rzp.open();
+                        };
+                        
+                        const rzp = new Razorpay(options);
+                        rzp.open();
+                    }
                     
                 } else {
                     showStatus('cardStatus', `Payment creation failed: ${paymentData.message}`, 'error');
@@ -266,35 +281,50 @@
                 const paymentData = await response.json();
                 
                 if (paymentData.success) {
-                    showStatus('upiStatus', 'UPI payment created! Opening Razorpay checkout...', 'success');
-                    
-                    const options = {
-                        key: paymentData.data.key,
-                        amount: paymentData.data.amount * 100,
-                        currency: paymentData.data.currency,
-                        name: 'Indian Payment API Test',
-                        description: 'Test UPI Payment',
-                        order_id: paymentData.data.razorpayOrderId,
-                        handler: function (response) {
-                            confirmPayment(paymentData.data.paymentId, response, 'upiStatus');
-                        },
-                        prefill: {
-                            name: 'Test User',
-                            email: 'test@example.com',
-                            contact: '+919876543210'
-                        },
-                        theme: {
-                            color: '#3399cc'
-                        },
-                        modal: {
-                            ondismiss: function() {
-                                showStatus('upiStatus', 'UPI payment cancelled by user', 'error');
+                    // Check if this is test mode
+                    if (paymentData.data.testMode) {
+                        showStatus('upiStatus', '🧪 Test Mode: UPI payment created successfully! Simulating payment confirmation...', 'success');
+                        
+                        // Simulate payment confirmation after 2 seconds
+                        setTimeout(() => {
+                            const mockResponse = {
+                                razorpay_order_id: paymentData.data.razorpayOrderId,
+                                razorpay_payment_id: 'test_upi_payment_' + Date.now(),
+                                razorpay_signature: 'test_upi_signature_' + Date.now()
+                            };
+                            confirmPayment(paymentData.data.paymentId, mockResponse, 'upiStatus');
+                        }, 2000);
+                    } else {
+                        showStatus('upiStatus', 'UPI payment created! Opening Razorpay checkout...', 'success');
+                        
+                        const options = {
+                            key: paymentData.data.key,
+                            amount: paymentData.data.amount * 100,
+                            currency: paymentData.data.currency,
+                            name: 'Indian Payment API Test',
+                            description: 'Test UPI Payment',
+                            order_id: paymentData.data.razorpayOrderId,
+                            handler: function (response) {
+                                confirmPayment(paymentData.data.paymentId, response, 'upiStatus');
+                            },
+                            prefill: {
+                                name: 'Test User',
+                                email: 'test@example.com',
+                                contact: '+919876543210'
+                            },
+                            theme: {
+                                color: '#3399cc'
+                            },
+                            modal: {
+                                ondismiss: function() {
+                                    showStatus('upiStatus', 'UPI payment cancelled by user', 'error');
+                                }
                             }
-                        }
-                    };
-                    
-                    const rzp = new Razorpay(options);
-                    rzp.open();
+                        };
+                        
+                        const rzp = new Razorpay(options);
+                        rzp.open();
+                    }
                     
                 } else {
                     showStatus('upiStatus', `UPI payment creation failed: ${paymentData.message}`, 'error');

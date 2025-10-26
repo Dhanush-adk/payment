@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Payment = require('../models/Payment');
-const Order = require('../models/Order');
+const Payment = require('../models/PaymentMySQL');
+const Order = require('../models/OrderMySQL');
 const paymentService = require('../services/paymentService');
 const gstService = require('../services/gstService');
 
@@ -66,7 +66,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
     } = req.body;
 
     // Check if payment already exists
-    const existingPayment = await Payment.findOne({ orderId });
+    const existingPayment = await Payment.findOne({ where: { orderId } });
     if (existingPayment) {
       return res.status(400).json({
         success: false,
@@ -139,7 +139,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
     }
 
     // Create payment record
-    const payment = new Payment({
+    const paymentData = {
       orderId,
       userId,
       amount,
@@ -147,39 +147,55 @@ router.post('/create', validateIndianPayment, async (req, res) => {
       paymentMethod,
       paymentProvider,
       status: 'pending',
-      paymentDetails: paymentMethod === 'cash_on_delivery' ? {
-        deliveryAddress: shippingAddress
-      } : {
-        razorpayOrderId: paymentResult.orderId
-      },
-      gstDetails: {
-        gstNumber: gstNumber || null,
-        gstRate: 18,
-        ...gstDetails
-      },
-      metadata: {
-        customerEmail,
-        customerPhone,
-        customerName,
-        items: items || [],
-        billingAddress,
-        shippingAddress
-      }
-    });
+      gstNumber: gstNumber || null,
+      gstRate: 18,
+      customerEmail,
+      customerPhone,
+      customerName,
+      description: items ? items.map(item => `${item.name} x${item.quantity}`).join(', ') : null,
+      billingName: billingAddress.name,
+      billingStreet: billingAddress.street,
+      billingCity: billingAddress.city,
+      billingState: billingAddress.state,
+      billingPincode: billingAddress.pincode,
+      billingCountry: billingAddress.country || 'India'
+    };
 
-    await payment.save();
+    // Add payment method specific details
+    if (paymentMethod === 'cash_on_delivery') {
+      paymentData.deliveryName = shippingAddress.name;
+      paymentData.deliveryStreet = shippingAddress.street;
+      paymentData.deliveryCity = shippingAddress.city;
+      paymentData.deliveryState = shippingAddress.state;
+      paymentData.deliveryPincode = shippingAddress.pincode;
+      paymentData.deliveryCountry = shippingAddress.country || 'India';
+      paymentData.deliveryPhone = shippingAddress.phone;
+      paymentData.deliveryLandmark = shippingAddress.landmark;
+    } else {
+      paymentData.razorpayOrderId = paymentResult.orderId;
+    }
+
+    const payment = await Payment.create(paymentData);
 
     res.status(201).json({
       success: true,
       message: 'Payment created successfully',
       data: {
-        paymentId: payment._id,
+        paymentId: payment.id,
         orderId: payment.orderId,
         amount: payment.amount,
         currency: payment.currency,
         paymentMethod: payment.paymentMethod,
         status: payment.status,
-        gstDetails: payment.gstDetails,
+        gstDetails: {
+          gstNumber: payment.gstNumber,
+          gstRate: payment.gstRate,
+          cgst: payment.cgst,
+          sgst: payment.sgst,
+          igst: payment.igst,
+          totalGst: payment.totalGst,
+          taxableAmount: payment.taxableAmount
+        },
         ...(paymentMethod !== 'cash_on_delivery' && { 
           razorpayOrderId: paymentResult.orderId,
           key: paymentResult.key 
@@ -206,7 +222,7 @@ router.post('/confirm', async (req, res) => {
   try {
     const { paymentId, paymentMethod, paymentData } = req.body;
 
-    const payment = await Payment.findById(paymentId);
+    const payment = await Payment.findByPk(paymentId);
     if (!payment) {
       return res.status(404).json({
         success: false,
@@ -227,8 +243,7 @@ router.post('/confirm', async (req, res) => {
     }
 
     if (!verificationResult.success || !verificationResult.verified) {
-      payment.status = 'failed';
-      await payment.save();
+      await payment.update({ status: 'failed' });
       
       return res.status(400).json({
         success: false,
@@ -238,33 +253,41 @@ router.post('/confirm', async (req, res) => {
     }
 
     // Update payment status
-    payment.status = 'completed';
+    const updateData = { status: 'completed' };
     if (paymentMethod !== 'cash_on_delivery') {
-      payment.paymentDetails.razorpayPaymentId = paymentData.razorpayPaymentId;
-      payment.paymentDetails.razorpaySignature = paymentData.razorpaySignature;
+      updateData.razorpayPaymentId = paymentData.razorpayPaymentId;
+      updateData.razorpaySignature = paymentData.razorpaySignature;
       if (paymentMethod === 'upi') {
-        payment.paymentDetails.upiTransactionId = paymentData.razorpayPaymentId;
+        updateData.upiTransactionId = paymentData.razorpayPaymentId;
       }
     }
-    await payment.save();
+    await payment.update(updateData);
 
     // Update order status
-    await Order.findOneAndUpdate(
-      { orderId: payment.orderId },
+    await Order.update(
       { 
         paymentStatus: 'paid',
         status: 'confirmed'
-      }
+      },
+      { where: { orderId: payment.orderId } }
     );
 
     res.json({
       success: true,
       message: 'Payment confirmed successfully',
       data: {
-        paymentId: payment._id,
+        paymentId: payment.id,
         status: payment.status,
         orderId: payment.orderId,
-        gstDetails: payment.gstDetails
+        gstDetails: {
+          gstNumber: payment.gstNumber,
+          gstRate: payment.gstRate,
+          cgst: payment.cgst,
+          sgst: payment.sgst,
+          igst: payment.igst,
+          totalGst: payment.totalGst,
+          taxableAmount: payment.taxableAmount
+        }
       }
     });
 
@@ -281,7 +304,7 @@ router.post('/confirm', async (req, res) => {
 // Get payment status
 router.get('/status/:paymentId', async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.paymentId);
+    const payment = await Payment.findByPk(req.params.paymentId);
     
     if (!payment) {
       return res.status(404).json({
@@ -293,13 +316,21 @@ router.get('/status/:paymentId', async (req, res) => {
     res.json({
       success: true,
       data: {
-        paymentId: payment._id,
+        paymentId: payment.id,
         orderId: payment.orderId,
         amount: payment.amount,
         currency: payment.currency,
         paymentMethod: payment.paymentMethod,
         status: payment.status,
-        gstDetails: payment.gstDetails,
+        gstDetails: {
+          gstNumber: payment.gstNumber,
+          gstRate: payment.gstRate,
+          cgst: payment.cgst,
+          sgst: payment.sgst,
+          igst: payment.igst,
+          totalGst: payment.totalGst,
+          taxableAmount: payment.taxableAmount
+        },
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt
       }
@@ -320,7 +351,7 @@ router.post('/refund', async (req, res) => {
   try {
     const { paymentId, amount, reason } = req.body;
 
-    const payment = await Payment.findById(paymentId);
+    const payment = await Payment.findByPk(paymentId);
     if (!payment) {
       return res.status(404).json({
         success: false,
@@ -337,7 +368,7 @@ router.post('/refund', async (req, res) => {
 
     const refundAmount = amount || payment.amount;
     const refundResult = await paymentService.refundPayment(
-      payment.paymentDetails.razorpayPaymentId,
+      payment.razorpayPaymentId,
       refundAmount,
       reason,
       payment.paymentProvider
@@ -352,15 +383,14 @@ router.post('/refund', async (req, res) => {
     }
 
     // Update payment status
-    payment.status = 'refunded';
-    payment.refundDetails = {
+    await payment.update({
+      status: 'refunded',
       refundId: refundResult.refundId,
       refundAmount: refundAmount,
       refundReason: reason,
       refundedAt: new Date(),
       refundStatus: 'processed'
-    };
-    await payment.save();
+    });
 
     res.json({
       success: true,
