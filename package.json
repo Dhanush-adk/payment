@@ -5,10 +5,16 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "start:prod": "pm2 start ecosystem.config.cjs --env production",
     "dev": "nodemon src/server.js",
     "test": "jest",
     "init-mysql": "node init-mysql.js",
-    "test-payment-migration": "node test-payment-migration.js"
+    "test-rds": "node test-rds-connection.js",
+    "setup-rds": "node setup-rds-and-test.js",
+    "create-rds-db": "node create-rds-database.js",
+    "test-payment-migration": "node test-payment-migration.js",
+    "docker:build": "docker build -t payment-api .",
+    "docker:run": "docker run -d -p 3000:3000 --env-file .env --name payment-api payment-api"
   },
   "dependencies": {
     "axios": "^1.6.2",

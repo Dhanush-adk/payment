@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -17,16 +18,18 @@ const app = express();
 // Connect to MySQL database
 connectDB();
 
-// Security middleware
+// Security middleware – in development disable CSP so /test page (Razorpay, inline scripts) works
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
+  contentSecurityPolicy: process.env.NODE_ENV === 'production'
+    ? {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'", "https://checkout.razorpay.com"],
+          imgSrc: ["'self'", "data:", "https:"],
+        },
+      }
+    : false,
 }));
 
 // CORS configuration for Indian domains
@@ -40,8 +43,8 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // In production, only allow specific domains
-    const allowedOrigins = ['https://yourdomain.in', 'https://www.yourdomain.in'];
+    // In production, only allow specific domains (set CORS_ALLOWED_ORIGINS in .env, e.g. https://app.example.com,https://www.example.com)
+    const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'https://yourdomain.in,https://www.yourdomain.in').split(',').map(s => s.trim());
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -80,6 +83,11 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/gst', gstRoutes);
+
+// Serve test frontend at /test (local testing)
+app.get('/test', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '..', 'payment-test.html'));
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {

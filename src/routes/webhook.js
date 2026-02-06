@@ -1,11 +1,22 @@
 const express = require('express');
+const crypto = require('crypto');
 const Payment = require('../models/PaymentMySQL');
 const Order = require('../models/OrderMySQL');
 
 const router = express.Router();
 
-// Razorpay webhook
-router.post('/razorpay', express.json(), async (req, res) => {
+// Razorpay webhook – verify signature with raw body, then handle event
+router.post('/razorpay', express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }), (req, res, next) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const sig = req.headers['x-razorpay-signature'];
+  if (secret && sig) {
+    const expected = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
+    if (expected !== sig) {
+      return res.status(400).json({ error: 'Invalid webhook signature' });
+    }
+  }
+  next();
+}, async (req, res) => {
   const { event, payload } = req.body;
 
   try {

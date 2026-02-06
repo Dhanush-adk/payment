@@ -16,7 +16,11 @@ const sequelize = new Sequelize(
       min: 0,
       acquire: 30000,
       idle: 10000
-    }
+    },
+    // AWS RDS: use SSL; accept RDS self-signed cert
+    dialectOptions: process.env.MYSQL_HOST && process.env.MYSQL_HOST.includes('rds.amazonaws.com')
+      ? { ssl: { rejectUnauthorized: false } }
+      : {}
   }
 );
 
