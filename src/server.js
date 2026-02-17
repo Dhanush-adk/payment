@@ -7,7 +7,12 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const { connectDB } = require('./config/database');
+const { pool } = require('./models/db');
+const swaggerUi = require('swagger-ui-express');
+const openApiSpec = require('./openapi.json');
+if (process.env.API_BASE_URL) {
+  openApiSpec.servers = [{ url: process.env.API_BASE_URL, description: 'API' }];
+}
 const paymentRoutes = require('./routes/payment');
 const orderRoutes = require('./routes/order');
 const webhookRoutes = require('./routes/webhook');
@@ -15,8 +20,19 @@ const gstRoutes = require('./routes/gst');
 
 const app = express();
 
-// Connect to MySQL database
-connectDB();
+// Verify MySQL connection (raw pool, trendRushBackend-style)
+(async () => {
+  try {
+    const conn = await pool.getConnection();
+    await conn.query('SELECT 1');
+    conn.release();
+    console.log(`🗄️ MySQL Connected: ${process.env.MYSQL_HOST || 'localhost'}`);
+    console.log(`🇮🇳 Database configured for India (INR, GST compliant)`);
+  } catch (err) {
+    console.error('❌ MySQL connection error:', err.message);
+    process.exit(1);
+  }
+})();
 
 // Security middleware – in development disable CSP so /test page (Razorpay, inline scripts) works
 app.use(helmet({
@@ -89,6 +105,12 @@ app.get('/test', (req, res) => {
   res.sendFile(path.resolve(__dirname, '..', 'payment-test.html'));
 });
 
+// Swagger / OpenAPI docs (not under /api so not rate-limited)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+  customSiteTitle: 'Payment API (India) – Swagger',
+  customCss: '.swagger-ui .topbar { display: none }',
+}));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -135,6 +157,7 @@ app.use('*', (req, res) => {
     availableEndpoints: [
       'GET /health',
       'GET /compliance',
+      'GET /api-docs',
       'POST /api/payments/create',
       'POST /api/payments/confirm',
       'GET /api/payments/status/:paymentId',

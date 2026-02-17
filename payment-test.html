@@ -90,6 +90,11 @@
     <div class="container">
         <h1>🇮🇳 Indian Payment API Test</h1>
         
+        <div class="payment-section" style="background-color: #e8f5e9;">
+            <h3>🔗 Connection</h3>
+            <p>API: <code id="apiBaseDisplay">—</code></p>
+            <p id="connectionStatus">Checking…</p>
+        </div>
         <div class="test-cards">
             <h3>🧪 Test Cards (Use these for testing)</h3>
             <p><strong>Visa:</strong> <code>4111111111111111</code></p>
@@ -124,7 +129,43 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3000';
+        // Use current origin when page is served from same server (e.g. /test), else fallback
+        const API_BASE = (typeof window !== 'undefined' && window.location.origin && window.location.protocol !== 'file:')
+            ? window.location.origin
+            : 'http://localhost:3000';
+        
+        (function showConnection() {
+            var el = document.getElementById('apiBaseDisplay');
+            var statusEl = document.getElementById('connectionStatus');
+            if (el) el.textContent = API_BASE;
+            if (statusEl) {
+                fetch(API_BASE + '/health').then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        statusEl.innerHTML = '<span style="color:green">✓ Server OK</span> (' + (d.country || '') + ' ' + (d.currency || '') + ')';
+                    })
+                    .catch(function() {
+                        statusEl.innerHTML = '<span style="color:red">✗ Cannot reach server. Start with: <code>node src/server.js</code> and open this page at ' + API_BASE + '/test</span>';
+                    });
+            }
+        })();
+        
+        const defaultBilling = {
+            name: 'Test User',
+            street: '123 Test St',
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            pincode: '400001',
+            country: 'India'
+        };
+        const defaultShipping = {
+            name: 'Test User',
+            street: '123 Test St',
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            pincode: '400001',
+            country: 'India',
+            phone: '+919876543210'
+        };
         
         function showStatus(elementId, message, type = 'info') {
             const element = document.getElementById(elementId);
@@ -133,16 +174,51 @@
 
         function setButtonLoading(buttonId, loading) {
             const button = document.getElementById(buttonId);
+            if (!button) return;
+            if (!button.dataset.originalText) button.dataset.originalText = button.textContent;
             button.disabled = loading;
-            button.textContent = loading ? 'Processing...' : button.textContent.replace('Processing...', '');
+            button.textContent = loading ? 'Processing...' : button.dataset.originalText;
+        }
+
+        /** Create order first (TrendRush flow); returns orderId, shippingAddressId, billingAddressId */
+        async function createOrder(amount, statusEl) {
+            const res = await fetch(`${API_BASE}/api/orders/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: 'user_001',
+                    items: [{ name: 'Test Product', quantity: 1, price: amount }],
+                    totalAmount: amount,
+                    shippingAddress: defaultShipping,
+                    billingAddress: defaultBilling,
+                    paymentMethod: 'card'
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success) {
+                const msg = data.message || (data.errors && data.errors.length ? data.errors.map(e => e.msg).join('; ') : 'Order create failed');
+                throw new Error(msg);
+            }
+            const sid = data.data.shippingAddressId;
+            const bid = data.data.billingAddressId;
+            if ((sid === undefined || sid === null) || (bid === undefined || bid === null)) {
+                throw new Error('Order did not return address IDs. Ensure TrendRush schema is applied (run init-trendrush-schema.js).');
+            }
+            return {
+                orderId: data.data.orderId,
+                shippingAddressId: sid,
+                billingAddressId: bid
+            };
         }
 
         async function createCardPayment() {
             setButtonLoading('cardBtn', true);
-            showStatus('cardStatus', 'Creating payment...', 'info');
+            showStatus('cardStatus', 'Creating order...', 'info');
             
             try {
-                // Step 1: Create payment
+                const order = await createOrder(100, 'cardStatus');
+                showStatus('cardStatus', 'Order created. Creating payment...', 'info');
+                
                 const response = await fetch(`${API_BASE}/api/payments/create`, {
                     method: 'POST',
                     headers: {
@@ -152,27 +228,29 @@
                         amount: 100,
                         currency: 'INR',
                         paymentMethod: 'card',
-                        orderId: 'CARD_TEST_' + Date.now(),
+                        orderId: order.orderId,
                         userId: 'user_001',
                         customerPhone: '+919876543210',
                         customerEmail: 'test@example.com',
                         customerName: 'Test User',
                         billingAddress: {
-                            name: 'Test User',
-                            street: '123 Test St',
-                            city: 'Mumbai',
-                            state: 'Maharashtra',
-                            pincode: '400001',
-                            country: 'India'
+                            addressId: order.billingAddressId,
+                            state: defaultBilling.state,
+                            name: defaultBilling.name,
+                            street: defaultBilling.street,
+                            city: defaultBilling.city,
+                            pincode: defaultBilling.pincode,
+                            country: defaultBilling.country
                         },
                         shippingAddress: {
-                            name: 'Test User',
-                            street: '123 Test St',
-                            city: 'Mumbai',
-                            state: 'Maharashtra',
-                            pincode: '400001',
-                            country: 'India',
-                            phone: '+919876543210'
+                            addressId: order.shippingAddressId,
+                            state: defaultShipping.state,
+                            name: defaultShipping.name,
+                            street: defaultShipping.street,
+                            city: defaultShipping.city,
+                            pincode: defaultShipping.pincode,
+                            country: defaultShipping.country,
+                            phone: defaultShipping.phone
                         }
                     })
                 });
@@ -241,9 +319,12 @@
 
         async function createUPIPayment() {
             setButtonLoading('upiBtn', true);
-            showStatus('upiStatus', 'Creating UPI payment...', 'info');
+            showStatus('upiStatus', 'Creating order...', 'info');
             
             try {
+                const order = await createOrder(200, 'upiStatus');
+                showStatus('upiStatus', 'Creating UPI payment...', 'info');
+                
                 const response = await fetch(`${API_BASE}/api/payments/create`, {
                     method: 'POST',
                     headers: {
@@ -253,27 +334,29 @@
                         amount: 200,
                         currency: 'INR',
                         paymentMethod: 'upi',
-                        orderId: 'UPI_TEST_' + Date.now(),
+                        orderId: order.orderId,
                         userId: 'user_002',
                         customerPhone: '+919876543210',
                         customerEmail: 'test@example.com',
                         customerName: 'Test User',
                         billingAddress: {
-                            name: 'Test User',
-                            street: '123 Test St',
-                            city: 'Mumbai',
-                            state: 'Maharashtra',
-                            pincode: '400001',
-                            country: 'India'
+                            addressId: order.billingAddressId,
+                            state: defaultBilling.state,
+                            name: defaultBilling.name,
+                            street: defaultBilling.street,
+                            city: defaultBilling.city,
+                            pincode: defaultBilling.pincode,
+                            country: defaultBilling.country
                         },
                         shippingAddress: {
-                            name: 'Test User',
-                            street: '123 Test St',
-                            city: 'Mumbai',
-                            state: 'Maharashtra',
-                            pincode: '400001',
-                            country: 'India',
-                            phone: '+919876543210'
+                            addressId: order.shippingAddressId,
+                            state: defaultShipping.state,
+                            name: defaultShipping.name,
+                            street: defaultShipping.street,
+                            city: defaultShipping.city,
+                            pincode: defaultShipping.pincode,
+                            country: defaultShipping.country,
+                            phone: defaultShipping.phone
                         }
                     })
                 });
@@ -340,9 +423,12 @@
 
         async function createCODPayment() {
             setButtonLoading('codBtn', true);
-            showStatus('codStatus', 'Creating Cash on Delivery order...', 'info');
+            showStatus('codStatus', 'Creating order...', 'info');
             
             try {
+                const order = await createOrder(500, 'codStatus');
+                showStatus('codStatus', 'Creating Cash on Delivery order...', 'info');
+                
                 const response = await fetch(`${API_BASE}/api/payments/create`, {
                     method: 'POST',
                     headers: {
@@ -352,27 +438,29 @@
                         amount: 500,
                         currency: 'INR',
                         paymentMethod: 'cash_on_delivery',
-                        orderId: 'COD_TEST_' + Date.now(),
+                        orderId: order.orderId,
                         userId: 'user_003',
                         customerPhone: '+919876543210',
                         customerEmail: 'test@example.com',
                         customerName: 'Test User',
                         billingAddress: {
-                            name: 'Test User',
-                            street: '123 Test St',
-                            city: 'Mumbai',
-                            state: 'Maharashtra',
-                            pincode: '400001',
-                            country: 'India'
+                            addressId: order.billingAddressId,
+                            state: defaultBilling.state,
+                            name: defaultBilling.name,
+                            street: defaultBilling.street,
+                            city: defaultBilling.city,
+                            pincode: defaultBilling.pincode,
+                            country: defaultBilling.country
                         },
                         shippingAddress: {
-                            name: 'Test User',
-                            street: '123 Test St',
-                            city: 'Mumbai',
-                            state: 'Maharashtra',
-                            pincode: '400001',
-                            country: 'India',
-                            phone: '+919876543210'
+                            addressId: order.shippingAddressId,
+                            state: defaultShipping.state,
+                            name: defaultShipping.name,
+                            street: defaultShipping.street,
+                            city: defaultShipping.city,
+                            pincode: defaultShipping.pincode,
+                            country: defaultShipping.country,
+                            phone: defaultShipping.phone
                         }
                     })
                 });
