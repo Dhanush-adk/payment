@@ -93,10 +93,12 @@ async function handleRazorpayPaymentSuccess(payment) {
       );
     }
 
-    await pool.execute(
-      `UPDATE norders SET payment_status = 'PAID', order_status = 'CONFIRMED' WHERE order_id = ?`,
-      [row.order_id]
-    );
+    if (row.order_id != null) {
+      await pool.execute(
+        `UPDATE norders SET payment_status = 'PAID', order_status = 'CONFIRMED' WHERE order_id = ?`,
+        [row.order_id]
+      );
+    }
 
     console.log(`Razorpay payment ${row.payment_id} completed successfully`);
   } catch (error) {
@@ -139,10 +141,12 @@ async function handleRazorpayOrderPaid(order) {
       'UPDATE payment_info SET status = ? WHERE id = ?',
       ['completed', row.payment_id]
     );
-    await pool.execute(
-      `UPDATE norders SET payment_status = 'PAID', order_status = 'CONFIRMED' WHERE order_id = ?`,
-      [row.order_id]
-    );
+    if (row.order_id != null) {
+      await pool.execute(
+        `UPDATE norders SET payment_status = 'PAID', order_status = 'CONFIRMED' WHERE order_id = ?`,
+        [row.order_id]
+      );
+    }
     console.log(`Razorpay order ${order.id} paid successfully`);
   } catch (error) {
     console.error('Error handling Razorpay order paid:', error);

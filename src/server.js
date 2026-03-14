@@ -48,24 +48,15 @@ app.use(helmet({
     : false,
 }));
 
-// CORS configuration for Indian domains
+// CORS: mobile app sends no Origin so always allowed. If you add a web app later, set CORS_ALLOWED_ORIGINS to restrict browser origins.
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // In development, allow all localhost origins and null origin
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    
-    // In production, only allow specific domains (set CORS_ALLOWED_ORIGINS in .env, e.g. https://app.example.com,https://www.example.com)
-    const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'https://yourdomain.in,https://www.yourdomain.in').split(',').map(s => s.trim());
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    if (!origin) return callback(null, true); // mobile app, curl, etc.
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    const allowed = (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (allowed.length === 0) return callback(null, true); // no list = allow all (mobile-only API)
+    if (allowed.indexOf(origin) !== -1) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

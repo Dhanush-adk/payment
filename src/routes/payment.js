@@ -99,24 +99,53 @@ router.post('/create', validateIndianPayment, async (req, res) => {
     gstNumber,
   } = req.body;
 
+  // We don't create orders; order backend does. So if order isn't in our norders, treat as external.
+  let resolvedOrderId = null;
+  let externalOrderId = null;
+
   let conn;
   try {
     conn = await pool.getConnection();
     await conn.beginTransaction();
 
-    const resolvedOrderId = await resolveOrderNumericId(conn, incomingOrderId);
-
-    const [existingRows] = await conn.query(
-      'SELECT id FROM payment_info WHERE order_id = ? LIMIT 1',
-      [resolvedOrderId]
-    );
-    if (existingRows && existingRows.length > 0) {
-      await conn.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Payment already exists for this order',
-      });
+    try {
+      resolvedOrderId = await resolveOrderNumericId(conn, incomingOrderId);
+    } catch (lookupErr) {
+      // Order not in our DB → external order (from order backend). Use orderId as reference only.
+      if (incomingOrderId != null && incomingOrderId !== '') {
+        externalOrderId = String(incomingOrderId);
+      } else {
+        throw lookupErr;
+      }
     }
+
+    if (resolvedOrderId != null) {
+      const [existingRows] = await conn.query(
+        'SELECT id FROM payment_info WHERE order_id = ? LIMIT 1',
+        [resolvedOrderId]
+      );
+      if (existingRows && existingRows.length > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Payment already exists for this order',
+        });
+      }
+    } else {
+      const [existingRows] = await conn.query(
+        'SELECT id FROM payment_info WHERE external_order_id = ? LIMIT 1',
+        [externalOrderId]
+      );
+      if (existingRows && existingRows.length > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Payment already exists for this order',
+        });
+      }
+    }
+
+    const orderRefForRazorpay = String(resolvedOrderId ?? externalOrderId);
 
     const isInterState =
       (billingAddress.addressState !== shippingAddress.addressState) ||
@@ -130,7 +159,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
     let paymentResult;
     switch (paymentMethod) {
       case 'upi':
-        paymentResult = await paymentService.createUPIPayment(amount, currency, String(resolvedOrderId), {
+        paymentResult = await paymentService.createUPIPayment(amount, currency, orderRefForRazorpay, {
           userId,
           customerPhone,
           customerEmail,
@@ -138,7 +167,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
         });
         break;
       case 'card':
-        paymentResult = await paymentService.createCardPayment(amount, currency, String(resolvedOrderId), {
+        paymentResult = await paymentService.createCardPayment(amount, currency, orderRefForRazorpay, {
           userId,
           customerPhone,
           customerEmail,
@@ -146,7 +175,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
         });
         break;
       case 'netbanking':
-        paymentResult = await paymentService.createNetBankingPayment(amount, currency, String(resolvedOrderId), {
+        paymentResult = await paymentService.createNetBankingPayment(amount, currency, orderRefForRazorpay, {
           userId,
           customerPhone,
           customerEmail,
@@ -154,7 +183,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
         });
         break;
       case 'wallet':
-        paymentResult = await paymentService.createWalletPayment(amount, currency, String(resolvedOrderId), {
+        paymentResult = await paymentService.createWalletPayment(amount, currency, orderRefForRazorpay, {
           userId,
           customerPhone,
           customerEmail,
@@ -162,7 +191,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
         });
         break;
       case 'cash_on_delivery':
-        paymentResult = await paymentService.createCashOnDeliveryPayment(amount, currency, String(resolvedOrderId), {
+        paymentResult = await paymentService.createCashOnDeliveryPayment(amount, currency, orderRefForRazorpay, {
           userId,
           customerPhone,
           customerEmail,
@@ -185,10 +214,11 @@ router.post('/create', validateIndianPayment, async (req, res) => {
 
     const [insertInfoResult] = await conn.execute(
       `INSERT INTO payment_info
-        (order_id, user_id, amount, currency, payment_method, payment_provider, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (order_id, external_order_id, user_id, amount, currency, payment_method, payment_provider, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         resolvedOrderId,
+        externalOrderId,
         userId,
         Number(amount),
         currency ?? 'INR',
@@ -199,11 +229,13 @@ router.post('/create', validateIndianPayment, async (req, res) => {
     );
     const paymentId = insertInfoResult.insertId;
 
-    const addressId = shippingAddress?.addressId ?? shippingAddress?.address_id;
-    if (!addressId) {
+    const addressIdFromRequest = shippingAddress?.addressId ?? shippingAddress?.address_id;
+    if (!addressIdFromRequest && externalOrderId == null) {
       await conn.rollback();
       return res.status(400).json({ success: false, message: 'shippingAddress.addressId is required' });
     }
+    // External order: address IDs are from order backend, not in our addresses table → use NULL to avoid FK error
+    const addressIdForDb = externalOrderId != null ? null : (addressIdFromRequest ?? null);
 
     await conn.execute(
       `INSERT INTO payment_details (
@@ -229,7 +261,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
         paymentResult.payuTransactionId ?? null,
         paymentResult.phonepeTransactionId ?? null,
         paymentResult.phonepeMerchantTransactionId ?? null,
-        addressId,
+        addressIdForDb,
       ]
     );
 
@@ -255,7 +287,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
     );
 
     const billingAddressId = billingAddress?.addressId ?? billingAddress?.address_id;
-    if (billingAddressId) {
+    if (billingAddressId && externalOrderId == null) {
       await conn.execute(
         'INSERT INTO payment_billing_address (payment_id, address_id) VALUES (?, ?)',
         [paymentId, billingAddressId]
@@ -290,7 +322,7 @@ router.post('/create', validateIndianPayment, async (req, res) => {
 
     const data = {
       paymentId,
-      orderId: resolvedOrderId,
+      orderId: resolvedOrderId ?? externalOrderId,
       amount: Number(amount),
       currency: currency ?? 'INR',
       paymentMethod,
@@ -382,10 +414,12 @@ router.post('/confirm', async (req, res) => {
       );
     }
 
-    await conn.execute(
-      `UPDATE norders SET payment_status = 'PAID', order_status = 'CONFIRMED' WHERE order_id = ?`,
-      [paymentRow.order_id]
-    );
+    if (paymentRow.order_id != null) {
+      await conn.execute(
+        `UPDATE norders SET payment_status = 'PAID', order_status = 'CONFIRMED' WHERE order_id = ?`,
+        [paymentRow.order_id]
+      );
+    }
 
     await conn.commit();
 
@@ -395,7 +429,7 @@ router.post('/confirm', async (req, res) => {
       data: {
         paymentId: Number(paymentId),
         status: 'completed',
-        orderId: paymentRow.order_id,
+        orderId: paymentRow.order_id ?? paymentRow.external_order_id,
         gstDetails: undefined,
       },
     });
@@ -443,7 +477,7 @@ router.get('/status/:paymentId', async (req, res) => {
       success: true,
       data: {
         paymentId: payment.id,
-        orderId: payment.order_id,
+        orderId: payment.order_id ?? payment.external_order_id,
         amount: Number(payment.amount),
         currency: payment.currency,
         paymentMethod: payment.payment_method,
